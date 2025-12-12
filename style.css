@@ -1,0 +1,242 @@
+:root {
+    --primary-color: #4a6fa5;
+    --secondary-color: #6b8cbc;
+    --light-color: #f5f5f5;
+    --dark-color: #333;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --border-radius: 8px;
+    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f0f2f5;
+    color: var(--dark-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 15px 0;
+    box-shadow: var(--box-shadow);
+    margin-bottom: 30px;
+}
+
+.header-content {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+h1 {
+    font-size: 1.8rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+.card {
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+}
+
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.question {
+    border-left: 4px solid var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.question-author {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.question-date {
+    color: #777;
+    font-size: 0.9rem;
+}
+
+.question-content {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.answers {
+    margin-top: 20px;
+    padding-left: 20px;
+    border-left: 2px solid #eee;
+}
+
+.answer {
+    padding: 15px;
+    background-color: var(--light-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 15px;
+}
+
+.answer-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.answer-author {
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.answer-date {
+    color: #777;
+    font-size: 0.85rem;
+}
+
+.answer-form {
+    margin-top: 20px;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.delete-btn:hover {
+    text-decoration: underline;
+}
+
+.hidden {
+    display: none;
+}
+
+.login-container {
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 30px;
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.login-title {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+.error-message {
+    color: var(--danger-color);
+    margin-top: 10px;
+    text-align: center;
+}
+
+.success-message {
+    color: var(--success-color);
+    margin-top: 10px;
+    text-align: center;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #777;
+}
+
+/* Ajouter ces styles à la fin du fichier CSS */
+.success-message-temp {
+    background-color: var(--success-color);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.no-answers {
+    color: #777;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}

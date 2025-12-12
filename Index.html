@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J'ai une question</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>J'ai une question</h1>
+            <div class="user-info">
+                <span id="current-user"></span>
+                <button id="logout-btn" class="btn btn-primary hidden">Déconnexion</button>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Page principale -->
+        <div id="main-page" class="hidden">
+            <!-- Formulaire de nouvelle question -->
+            <div class="card">
+                <h2>Poser une question</h2>
+                <form id="question-form">
+                    <div class="form-group">
+                        <textarea id="question-content" placeholder="Votre question..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Publier la question</button>
+                </form>
+            </div>
+            
+            <!-- Liste des questions -->
+            <div id="questions-container">
+                <div class="loading">Chargement des questions...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="database.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
