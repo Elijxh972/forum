@@ -76,7 +76,7 @@ function hashPassword(password) {
 }
 
 // Gestion de la connexion
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     
     const username = document.getElementById('username').value;
@@ -86,7 +86,7 @@ function handleLogin(e) {
     const hashedPassword = hashPassword(password);
     
     // Vérification d'authentification
-    const user = Database.getUserByUsername(username);
+    const user = await Database.getUserByUsername(username);
     
     if (user && user.password === hashedPassword) {
         currentUser = { id: user.id, username: user.username };
@@ -98,7 +98,7 @@ function handleLogin(e) {
 }
 
 // Gestion de l'inscription
-function handleSignup(e) {
+async function handleSignup(e) {
     e.preventDefault();
     
     const username = document.getElementById('signup-username').value.trim();
@@ -122,14 +122,14 @@ function handleSignup(e) {
     }
     
     // Vérifier si l'utilisateur existe déjà
-    const existingUser = Database.getUserByUsername(username);
+    const existingUser = await Database.getUserByUsername(username);
     if (existingUser) {
         showSignupMessage("Ce nom d'utilisateur est déjà pris", true);
         return;
     }
     
     // Créer le nouvel utilisateur
-    const newUser = Database.addUser(username, password);
+    const newUser = await Database.addUser(username, password);
     
     if (newUser) {
         // Connecter automatiquement l'utilisateur
@@ -212,25 +212,33 @@ function handleDeleteAnswer(questionId, answerId) {
     }
 }
 
-// Fonctions AJAX simulées
-function loadQuestions() {
-    // Simuler un délai de chargement
-    setTimeout(() => {
-        const questions = Database.getQuestions();
+// Fonctions AJAX
+async function loadQuestions() {
+    try {
+        const questions = await Database.getQuestions();
         displayQuestions(questions);
-    }, 500);
+    } catch (error) {
+        console.error('Erreur lors du chargement des questions:', error);
+        displayQuestions([]);
+    }
 }
 
-function addQuestion(question) {
-    // Simuler un délai d'ajout
-    setTimeout(() => {
-        Database.addQuestion(question);
-        displayQuestions(Database.getQuestions());
-        showSuccessMessage("Question ajoutée avec succès!");
-    }, 300);
+async function addQuestion(question) {
+    try {
+        const result = await Database.addQuestion(question);
+        if (result) {
+            await loadQuestions();
+            showSuccessMessage("Question ajoutée avec succès!");
+        } else {
+            showSuccessMessage("Erreur lors de l'ajout de la question", true);
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de la question:', error);
+        showSuccessMessage("Erreur lors de l'ajout de la question", true);
+    }
 }
 
-function addAnswer(questionId, answerContent) {
+async function addAnswer(questionId, answerContent) {
     // Vérifier que l'utilisateur est connecté
     if (!currentUser || !currentUser.username) {
         window.location.href = 'login.html';
@@ -244,36 +252,54 @@ function addAnswer(questionId, answerContent) {
         date: new Date().toISOString()
     };
     
-    // Simuler un délai d'ajout
-    setTimeout(() => {
-        Database.addAnswer(questionId, newAnswer);
-        displayQuestions(Database.getQuestions());
-        showSuccessMessage("Réponse ajoutée avec succès!");
-        
-        // Vider le champ de réponse après ajout
-        const answerTextarea = document.getElementById(`answer-${questionId}`);
-        if (answerTextarea) {
-            answerTextarea.value = '';
+    try {
+        const result = await Database.addAnswer(questionId, newAnswer);
+        if (result) {
+            await loadQuestions();
+            showSuccessMessage("Réponse ajoutée avec succès!");
+            
+            // Vider le champ de réponse après ajout
+            const answerTextarea = document.getElementById(`answer-${questionId}`);
+            if (answerTextarea) {
+                answerTextarea.value = '';
+            }
+        } else {
+            showSuccessMessage("Erreur lors de l'ajout de la réponse", true);
         }
-    }, 300);
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de la réponse:', error);
+        showSuccessMessage("Erreur lors de l'ajout de la réponse", true);
+    }
 }
 
-function deleteQuestion(questionId) {
-    // Simuler un délai de suppression
-    setTimeout(() => {
-        Database.deleteQuestion(questionId);
-        displayQuestions(Database.getQuestions());
-        showSuccessMessage("Question supprimée avec succès!");
-    }, 300);
+async function deleteQuestion(questionId) {
+    try {
+        const result = await Database.deleteQuestion(questionId);
+        if (result) {
+            await loadQuestions();
+            showSuccessMessage("Question supprimée avec succès!");
+        } else {
+            showSuccessMessage("Erreur lors de la suppression de la question", true);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la suppression de la question:', error);
+        showSuccessMessage("Erreur lors de la suppression de la question", true);
+    }
 }
 
-function deleteAnswer(questionId, answerId) {
-    // Simuler un délai de suppression
-    setTimeout(() => {
-        Database.deleteAnswer(questionId, answerId);
-        displayQuestions(Database.getQuestions());
-        showSuccessMessage("Réponse supprimée avec succès!");
-    }, 300);
+async function deleteAnswer(questionId, answerId) {
+    try {
+        const result = await Database.deleteAnswer(questionId, answerId);
+        if (result) {
+            await loadQuestions();
+            showSuccessMessage("Réponse supprimée avec succès!");
+        } else {
+            showSuccessMessage("Erreur lors de la suppression de la réponse", true);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la suppression de la réponse:', error);
+        showSuccessMessage("Erreur lors de la suppression de la réponse", true);
+    }
 }
 
 // Fonction pour échapper le HTML et prévenir les attaques XSS
@@ -396,25 +422,27 @@ function showSignupMessage(message, isError = true) {
     signupMessage.className = isError ? 'error-message' : 'success-message';
 }
 
-function showSuccessMessage(message) {
-    // Supprimer les anciens messages de succès
+function showSuccessMessage(message, isError = false) {
+    // Supprimer les anciens messages
     const oldMessages = document.querySelectorAll('.success-message-temp');
     oldMessages.forEach(msg => msg.remove());
     
     // Créer un nouvel élément de message
     const messageEl = document.createElement('div');
-    messageEl.className = 'success-message success-message-temp';
+    messageEl.className = isError ? 'error-message success-message-temp' : 'success-message success-message-temp';
     messageEl.textContent = message;
     
     // Ajouter le message en haut de la page principale
     const mainPage = document.getElementById('main-page');
-    const firstChild = mainPage.firstElementChild;
-    mainPage.insertBefore(messageEl, firstChild);
-    
-    // Supprimer le message après 3 secondes
-    setTimeout(() => {
-        if (messageEl.parentNode) {
-            messageEl.remove();
-        }
-    }, 3000);
+    if (mainPage) {
+        const firstChild = mainPage.firstElementChild;
+        mainPage.insertBefore(messageEl, firstChild);
+        
+        // Supprimer le message après 3 secondes
+        setTimeout(() => {
+            if (messageEl.parentNode) {
+                messageEl.remove();
+            }
+        }, 3000);
+    }
 }

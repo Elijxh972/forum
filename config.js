@@ -1,0 +1,15 @@
+// Configuration Supabase
+// Remplacez ces valeurs par vos propres clés Supabase
+// Obtenez-les sur https://supabase.com/dashboard
+
+const SUPABASE_URL = 'VOTRE_URL_SUPABASE'; // Exemple: 'https://xxxxx.supabase.co'
+const SUPABASE_ANON_KEY = 'VOTRE_CLE_ANON_SUPABASE'; // Exemple: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+
+// Initialiser le client Supabase (seulement si les clés sont configurées)
+let supabase = null;
+if (typeof window.supabase !== 'undefined' && 
+    SUPABASE_URL !== 'VOTRE_URL_SUPABASE' && 
+    SUPABASE_ANON_KEY !== 'VOTRE_CLE_ANON_SUPABASE') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+

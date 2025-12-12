@@ -11,8 +11,17 @@ function hashPassword(str) {
     return hash.toString(16) + str.length.toString(16);
 }
 
+// Fonction pour vérifier si Supabase est configuré
+function isSupabaseConfigured() {
+    return typeof supabase !== 'undefined' && 
+           supabase !== null &&
+           typeof SUPABASE_URL !== 'undefined' &&
+           typeof SUPABASE_ANON_KEY !== 'undefined' &&
+           SUPABASE_URL !== 'VOTRE_URL_SUPABASE' && 
+           SUPABASE_ANON_KEY !== 'VOTRE_CLE_ANON_SUPABASE';
+}
+
 // Base de données simulée - Utilisateurs par défaut (mots de passe hashés)
-// Note: En production, ces hashs devraient être générés au moment de la création
 const defaultUsers = [
     { id: 1, username: "admin", password: hashPassword("admin") },
     { id: 2, username: "user1", password: hashPassword("password1") },
@@ -57,20 +66,18 @@ const defaultQuestions = [
     }
 ];
 
-// Fonctions pour gérer le localStorage
+// ========== FONCTIONS LOCALSTORAGE (FALLBACK) ==========
 function loadQuestionsFromStorage() {
     const stored = localStorage.getItem('forumQuestions');
     if (stored) {
         try {
             return JSON.parse(stored);
         } catch (e) {
-            // Si les données sont corrompues, réinitialiser avec les données par défaut
             console.error('Erreur lors du chargement des questions:', e);
             saveQuestionsToStorage(defaultQuestions);
             return defaultQuestions;
         }
     }
-    // Si aucune donnée n'existe, initialiser avec les données par défaut
     saveQuestionsToStorage(defaultQuestions);
     return defaultQuestions;
 }
@@ -79,43 +86,17 @@ function saveQuestionsToStorage(questionsData) {
     localStorage.setItem('forumQuestions', JSON.stringify(questionsData));
 }
 
-function loadNextIdsFromStorage() {
-    const stored = localStorage.getItem('forumNextIds');
-    if (stored) {
-        try {
-            return JSON.parse(stored);
-        } catch (e) {
-            // Si les données sont corrompues, réinitialiser avec les valeurs par défaut
-            console.error('Erreur lors du chargement des IDs:', e);
-            const defaultIds = { nextQuestionId: 3, nextAnswerId: 4 };
-            saveNextIdsToStorage(defaultIds);
-            return defaultIds;
-        }
-    }
-    // Valeurs par défaut
-    const defaultIds = { nextQuestionId: 3, nextAnswerId: 4 };
-    saveNextIdsToStorage(defaultIds);
-    return defaultIds;
-}
-
-function saveNextIdsToStorage(ids) {
-    localStorage.setItem('forumNextIds', JSON.stringify(ids));
-}
-
-// Fonctions pour gérer les utilisateurs dans localStorage
 function loadUsersFromStorage() {
     const stored = localStorage.getItem('forumUsers');
     if (stored) {
         try {
             return JSON.parse(stored);
         } catch (e) {
-            // Si les données sont corrompues, réinitialiser avec les utilisateurs par défaut
             console.error('Erreur lors du chargement des utilisateurs:', e);
             saveUsersToStorage(defaultUsers);
             return defaultUsers;
         }
     }
-    // Si aucune donnée n'existe, initialiser avec les utilisateurs par défaut
     saveUsersToStorage(defaultUsers);
     return defaultUsers;
 }
@@ -124,153 +105,278 @@ function saveUsersToStorage(usersData) {
     localStorage.setItem('forumUsers', JSON.stringify(usersData));
 }
 
-function loadNextUserIdFromStorage() {
-    const stored = localStorage.getItem('forumNextUserId');
-    if (stored) {
-        const parsed = parseInt(stored);
-        if (!isNaN(parsed)) {
-            return parsed;
-        }
+// ========== FONCTIONS SUPABASE ==========
+async function loadUsersFromSupabase() {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .order('id', { ascending: true });
+        
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Erreur lors du chargement des utilisateurs depuis Supabase:', error);
+        return [];
     }
-    // Valeur par défaut (4 car on a déjà 3 utilisateurs par défaut)
-    const defaultNextId = 4;
-    saveNextUserIdToStorage(defaultNextId);
-    return defaultNextId;
 }
 
-function saveNextUserIdToStorage(nextId) {
-    localStorage.setItem('forumNextUserId', nextId.toString());
+async function loadQuestionsFromSupabase() {
+    try {
+        // Charger les questions
+        const { data: questions, error: questionsError } = await supabase
+            .from('questions')
+            .select('*')
+            .order('date', { ascending: false });
+        
+        if (questionsError) throw questionsError;
+        
+        // Charger les réponses pour chaque question
+        if (questions && questions.length > 0) {
+            const questionIds = questions.map(q => q.id);
+            const { data: answers, error: answersError } = await supabase
+                .from('answers')
+                .select('*')
+                .in('question_id', questionIds)
+                .order('date', { ascending: false });
+            
+            if (answersError) throw answersError;
+            
+            // Associer les réponses aux questions
+            questions.forEach(question => {
+                question.answers = answers.filter(a => a.question_id === question.id) || [];
+            });
+        }
+        
+        return questions || [];
+    } catch (error) {
+        console.error('Erreur lors du chargement des questions depuis Supabase:', error);
+        return [];
+    }
 }
 
-// Initialiser les données depuis localStorage
-let questions = loadQuestionsFromStorage();
-let { nextQuestionId, nextAnswerId } = loadNextIdsFromStorage();
-
-// Fonctions pour interagir avec la base de données
+// ========== CLASSE DATABASE ==========
 class Database {
-    static getUsers() {
-        // Recharger depuis localStorage pour être sûr d'avoir les dernières données
+    // ========== UTILISATEURS ==========
+    static async getUsers() {
+        if (isSupabaseConfigured()) {
+            return await loadUsersFromSupabase();
+        }
         return loadUsersFromStorage();
     }
 
-    static getUserByUsername(username) {
+    static async getUserByUsername(username) {
+        if (isSupabaseConfigured()) {
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', username)
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                    throw error;
+                }
+                return data || null;
+            } catch (error) {
+                console.error('Erreur lors de la recherche de l\'utilisateur:', error);
+                return null;
+            }
+        }
         const users = loadUsersFromStorage();
-        return users.find(u => u.username === username);
+        return users.find(u => u.username === username) || null;
     }
 
-    static addUser(username, password) {
-        // Recharger les utilisateurs depuis localStorage
-        const users = loadUsersFromStorage();
-        let nextUserId = loadNextUserIdFromStorage();
-        
-        // Vérifier si l'utilisateur existe déjà
-        if (users.find(u => u.username === username)) {
-            return null; // Utilisateur déjà existant
+    static async addUser(username, password) {
+        if (isSupabaseConfigured()) {
+            try {
+                // Vérifier si l'utilisateur existe déjà
+                const existing = await this.getUserByUsername(username);
+                if (existing) {
+                    return null;
+                }
+                
+                const hashedPassword = hashPassword(password);
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([{ username, password: hashedPassword }])
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                return data;
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout de l\'utilisateur:', error);
+                return null;
+            }
         }
         
-        // Hasher le mot de passe avant de le stocker
-        const hashedPassword = hashPassword(password);
+        // Fallback localStorage
+        const users = loadUsersFromStorage();
+        if (users.find(u => u.username === username)) {
+            return null;
+        }
         
-        // Créer le nouvel utilisateur
+        const hashedPassword = hashPassword(password);
+        const nextUserId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
         const newUser = {
-            id: nextUserId++,
+            id: nextUserId,
             username: username,
             password: hashedPassword
         };
         
         users.push(newUser);
-        
-        // Sauvegarder les utilisateurs et le prochain ID
         saveUsersToStorage(users);
-        saveNextUserIdToStorage(nextUserId);
-        
         return newUser;
     }
 
-    static getQuestions() {
-        // Recharger depuis localStorage pour être sûr d'avoir les dernières données
-        questions = loadQuestionsFromStorage();
+    // ========== QUESTIONS ==========
+    static async getQuestions() {
+        if (isSupabaseConfigured()) {
+            const questions = await loadQuestionsFromSupabase();
+            // Les questions sont déjà triées par date décroissante
+            // Trier les réponses de chaque question
+            questions.forEach(question => {
+                if (question.answers && question.answers.length > 0) {
+                    question.answers.sort((a, b) => new Date(b.date) - new Date(a.date));
+                }
+            });
+            return questions;
+        }
         
-        // Trier les questions par date décroissante (ordre anti-chronologique)
+        // Fallback localStorage
+        let questions = loadQuestionsFromStorage();
         questions.sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        // Trier les réponses de chaque question par date décroissante (ordre anti-chronologique)
         questions.forEach(question => {
             if (question.answers && question.answers.length > 0) {
                 question.answers.sort((a, b) => new Date(b.date) - new Date(a.date));
             }
         });
-        
         return questions;
     }
 
-    static addQuestion(question) {
-        // Recharger les questions et IDs depuis localStorage
-        questions = loadQuestionsFromStorage();
-        const ids = loadNextIdsFromStorage();
-        nextQuestionId = ids.nextQuestionId;
-        nextAnswerId = ids.nextAnswerId;
+    static async addQuestion(question) {
+        if (isSupabaseConfigured()) {
+            try {
+                const { data, error } = await supabase
+                    .from('questions')
+                    .insert([{
+                        content: question.content,
+                        author: question.author,
+                        date: question.date
+                    }])
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                // Ajouter un tableau answers vide pour la compatibilité
+                data.answers = [];
+                return data;
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout de la question:', error);
+                return null;
+            }
+        }
         
-        question.id = nextQuestionId++;
+        // Fallback localStorage
+        let questions = loadQuestionsFromStorage();
+        const maxId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) : 0;
+        question.id = maxId + 1;
         questions.unshift(question);
-        
-        // Sauvegarder les questions et les IDs
         saveQuestionsToStorage(questions);
-        saveNextIdsToStorage({ nextQuestionId, nextAnswerId });
-        
         return question;
     }
 
-    static addAnswer(questionId, answer) {
-        // Recharger les questions et IDs depuis localStorage
-        questions = loadQuestionsFromStorage();
-        const ids = loadNextIdsFromStorage();
-        nextQuestionId = ids.nextQuestionId;
-        nextAnswerId = ids.nextAnswerId;
+    static async addAnswer(questionId, answer) {
+        if (isSupabaseConfigured()) {
+            try {
+                const { data, error } = await supabase
+                    .from('answers')
+                    .insert([{
+                        question_id: questionId,
+                        content: answer.content,
+                        author: answer.author,
+                        date: answer.date
+                    }])
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                return data;
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout de la réponse:', error);
+                return null;
+            }
+        }
         
+        // Fallback localStorage
+        let questions = loadQuestionsFromStorage();
         const question = questions.find(q => q.id === questionId);
         if (question) {
-            answer.id = nextAnswerId++;
+            const maxAnswerId = question.answers && question.answers.length > 0 
+                ? Math.max(...question.answers.map(a => a.id)) 
+                : 0;
+            answer.id = maxAnswerId + 1;
+            if (!question.answers) question.answers = [];
             question.answers.unshift(answer);
-            
-            // Sauvegarder les questions et les IDs
             saveQuestionsToStorage(questions);
-            saveNextIdsToStorage({ nextQuestionId, nextAnswerId });
-            
             return answer;
         }
         return null;
     }
 
-    static deleteQuestion(questionId) {
-        // Recharger les questions depuis localStorage
-        questions = loadQuestionsFromStorage();
+    static async deleteQuestion(questionId) {
+        if (isSupabaseConfigured()) {
+            try {
+                const { error } = await supabase
+                    .from('questions')
+                    .delete()
+                    .eq('id', questionId);
+                
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                console.error('Erreur lors de la suppression de la question:', error);
+                return false;
+            }
+        }
         
+        // Fallback localStorage
+        let questions = loadQuestionsFromStorage();
         const index = questions.findIndex(q => q.id === questionId);
         if (index !== -1) {
             questions.splice(index, 1);
-            
-            // Sauvegarder les questions
             saveQuestionsToStorage(questions);
-            
             return true;
         }
         return false;
     }
 
-    static deleteAnswer(questionId, answerId) {
-        // Recharger les questions depuis localStorage
-        questions = loadQuestionsFromStorage();
+    static async deleteAnswer(questionId, answerId) {
+        if (isSupabaseConfigured()) {
+            try {
+                const { error } = await supabase
+                    .from('answers')
+                    .delete()
+                    .eq('id', answerId)
+                    .eq('question_id', questionId);
+                
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                console.error('Erreur lors de la suppression de la réponse:', error);
+                return false;
+            }
+        }
         
+        // Fallback localStorage
+        let questions = loadQuestionsFromStorage();
         const question = questions.find(q => q.id === questionId);
         if (question) {
             const index = question.answers.findIndex(a => a.id === answerId);
             if (index !== -1) {
                 question.answers.splice(index, 1);
-                
-                // Sauvegarder les questions
                 saveQuestionsToStorage(questions);
-                
                 return true;
             }
         }

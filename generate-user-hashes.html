@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de hashs pour utilisateurs par défaut</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .output {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Générateur de hashs pour utilisateurs par défaut</h1>
+    <p>Ce script génère les hashs de mots de passe pour les utilisateurs par défaut.</p>
+    <button onclick="generateHashes()">Générer les hashs</button>
+    
+    <div id="output" class="output" style="display: none;">
+        <h3>Hashs générés :</h3>
+        <div id="hashes"></div>
+        <h3>Requête SQL à exécuter dans Supabase :</h3>
+        <div id="sql"></div>
+    </div>
+
+    <script>
+        function hashPassword(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return hash.toString(16) + str.length.toString(16);
+        }
+
+        function generateHashes() {
+            const users = [
+                { username: 'admin', password: 'admin' },
+                { username: 'user1', password: 'password1' },
+                { username: 'user2', password: 'password2' }
+            ];
+
+            let hashesHtml = '<ul>';
+            let sqlValues = [];
+
+            users.forEach(user => {
+                const hash = hashPassword(user.password);
+                hashesHtml += `<li><strong>${user.username}</strong> (${user.password}): <code>${hash}</code></li>`;
+                sqlValues.push(`('${user.username}', '${hash}')`);
+            });
+
+            hashesHtml += '</ul>';
+
+            const sqlQuery = `INSERT INTO users (username, password) VALUES 
+    ${sqlValues.join(',\n    ')}
+ON CONFLICT (username) DO NOTHING;`;
+
+            document.getElementById('hashes').innerHTML = hashesHtml;
+            document.getElementById('sql').innerHTML = `<pre>${sqlQuery}</pre>`;
+            document.getElementById('output').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+
